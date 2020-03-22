@@ -4,7 +4,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -294,7 +294,7 @@ final class SynchronizedBlockConsecutiveNumberProducer implements ConsecutiveNum
 
 /**
  * This implementation uses an unsynchronized method to return the next whole number,
- * but uses an {@link AtomicLong} to enforce atomicity of changes to its variable's state.
+ * but uses an {@link AtomicInteger} to enforce atomicity of changes to its variable's state.
  */
 final class AtomicConsecutiveNumberProducer implements ConsecutiveNumberProducer {
     final private AtomicInteger current = new AtomicInteger(0);
@@ -313,7 +313,7 @@ final class AtomicConsecutiveNumberProducer implements ConsecutiveNumberProducer
  * the next whole number, and is thread-safe.
  */
 final class ReentrantLockConsecutiveNumberProducer implements ConsecutiveNumberProducer {
-    final private ReentrantLock lock = new ReentrantLock();
+    final private Lock lock = new ReentrantLock();
     private int current = 0;
 
     @Override
