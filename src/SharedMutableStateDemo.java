@@ -3,6 +3,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -13,7 +14,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>
  * Without explicit measures to gaurantee that mutable state observed by two or more threads is
  * consistent, that state will likely be inconsistent. The result will be bugs are very difficult
- * to diagnose. This class demonstrates the use of several such measures.
+ * to diagnose. This class demonstrates the use of several such thread-safety measures.
  * <p>
  * While inconsistent state may be a moot concern in a program that runs in a single thread, it
  * will become manifest if and when one or more threads are introduced to the program.
@@ -57,7 +58,23 @@ final public class SharedMutableStateDemo {
         ReentrantLock
     }
 
+    private static int iterations;
+
     public static void main(String[] args) throws Exception {
+
+        if (args.length < 1) {
+            System.out.println("Usage: java [-cp bin] " +
+                SharedMutableStateDemo.class.getSimpleName() + " iterations\n");
+            System.out.println("  where iterations is a whole number between 1 and " + Integer.MAX_VALUE);
+            System.exit(1);
+        }
+
+        iterations = Integer.parseInt(args[0]);
+        if (iterations < 1) {
+            throw new IllegalArgumentException(
+                "Argument must be a whole number between 1 and " + Integer.MAX_VALUE);
+        }
+
         // Run and report the results of each strategy in turn.
         readStateFromMultipleThreads(Strategy.Unsynchronized);
         readStateFromMultipleThreads(Strategy.Volatile);
@@ -73,9 +90,9 @@ final public class SharedMutableStateDemo {
      * 
      * @param strategy The {@link Strategy} to enforce synchronization.
      * 
-     * @throws Exception
+     * @throws Exception in the event of an error or exception.
      */
-    static void readStateFromMultipleThreads(Strategy strategy) throws Exception {
+    private static void readStateFromMultipleThreads(Strategy strategy) throws Exception {
         // Create a brand new ConsecutiveNumberProducer based on the supplied strategy.
         ConsecutiveNumberProducer producer =
             ConsecutiveNumberProducerFactory.newConsecutiveNumberProducer(strategy);
@@ -88,13 +105,13 @@ final public class SharedMutableStateDemo {
         long startTime = System.nanoTime();
 
         // Start reading values from the number producer in the parallel thread.
-        Future<Set<Long>> future = executor.submit(() -> readFrom(producer));
+        Future<Set<Integer>> future = executor.submit(() -> readFrom(producer));
 
         // Start reading values from the same number producer in the current thread.
-        Set<Long> mSet = readFrom(producer);
+        Set<Integer> mSet = readFrom(producer);
         
         // Wait for the parallel thread to finish.
-        Set<Long> tSet = future.get();
+        Set<Integer> tSet = future.get();
 
         // Stop the stopwatch.
         long totalTime = System.nanoTime() - startTime;
@@ -114,42 +131,48 @@ final public class SharedMutableStateDemo {
      * 
      * @return A {@link HashSet} containing the numbers produced by the supplied producer.
      */
-    static Set<Long> readFrom(ConsecutiveNumberProducer producer) {
-        Set<Long> set = new HashSet<>();
-        for(int i=0; i<1000000; i++) {
+    private static Set<Integer> readFrom(ConsecutiveNumberProducer producer) {
+        Set<Integer> set = new HashSet<>();
+        for(int i=0; i<iterations; i++) {
             set.add(producer.next());
         }
         return set;
     }
 
     /**
-     * Given two {@link Set}s containing whole numbers, counts and reports the number of collisions;
-     * that is, numbers appearing in both sets. Elapsed time of parallel set population is also reported.
+     * Given two {@link Set}s containing whole numbers, counts and reports the number of intersecting
+     * members; that is, numbers appearing in both sets. Elapsed time of parallel set population is
+     * also reported.
      * <p>
      * If we assume that each of the suppled sets is populated by different threads sharing a single
      * {@link ConsecutiveNumberProducer}, and that a correctly-behaving {@link ConsecutiveNumberProducer}
-     * always produces a unique value, then there should be no collisions.
+     * always produces a unique value, then there should be no intersecting members.
      * 
      * @param strategy The {@link Strategy} used to popuplate the sets.
+     * @param totalTime The total time required to populate both sets.
      * @param mSet The set populated in the main thread.
      * @param tSet The set populated in the parallel thread.
      */
-    static void reportResults(Strategy strategy, long totalTime, Set<Long> mSet, Set<Long> tSet) {
-        int collisions = 0;
-        for (Long item : mSet) {
+    private static void reportResults(Strategy strategy, long totalTime, Set<Integer> mSet, Set<Integer> tSet) {
+        long totalTimeMillis = totalTime / 1_000_000;
+        int intersections = 0;
+        for (Integer item : mSet) {
             if (tSet.contains(item)) {
-                collisions++;
+                intersections++;
             }
         }
-        System.out.println("Use of " + strategy + " strategy resulted in " + collisions + " collisions.");
-        System.out.println(" -> This strategy " + (collisions == 0 ? "is" : "is not") + " thread-safe, " +
-                           "and cost " + (totalTime / 1_000_000) + " milliseconds to retrieve " +
-                           (mSet.size() + tSet.size()) + " whole numbers.\n");
+        System.out.println("\n" + strategy + " strategy " +
+            (intersections == 0 ? "may be" : "is not") + " thread-safe.");
+        System.out.println(" -> Total set intersections:          " + intersections);
+        System.out.println(" -> Total collisions in thread/set 1: " + (iterations - mSet.size()));
+        System.out.println(" -> Total collisions in thread/set 2: " + (iterations - tSet.size()));
+        System.out.println(" -> Total time in milliseconds:       " + totalTimeMillis);
     }
 }
 
 /**
- * A factory that manufactures {@link ConsecutiveNumberProducer} instances based on a {@link Strategy}.
+ * A factory that manufactures {@link ConsecutiveNumberProducer} instances based on a
+ * {@link SharedMutableStateDemo.Strategy}.
  */
 final class ConsecutiveNumberProducerFactory {
     static ConsecutiveNumberProducer newConsecutiveNumberProducer(SharedMutableStateDemo.Strategy strategy) {
@@ -191,7 +214,7 @@ interface ConsecutiveNumberProducer {
      * 
      * @return The next consecutive whole number.
      */
-    Long next();
+    int next();
 }
 
 /**
@@ -200,10 +223,13 @@ interface ConsecutiveNumberProducer {
  * it will not if it is shared between multiple threads.
  */
 final class UnsynchronizedConsecutiveNumberProducer implements ConsecutiveNumberProducer {
-    private Long current = Long.valueOf(0);
+    private int current = 0;
 
     @Override
-    public Long next() {
+    public int next() {
+        if (current == Integer.MAX_VALUE) {
+            throw new IllegalStateException("Overflow!");
+        }
         return current++;
     }
 }
@@ -221,10 +247,13 @@ final class UnsynchronizedConsecutiveNumberProducer implements ConsecutiveNumber
  * threads retrieving the same value from separate calls to <code>next()</code>.
  */
 final class VolatileConsecutiveNumberProducer implements ConsecutiveNumberProducer {
-    private volatile Long current = Long.valueOf(0);
+    private volatile int current = 0;
 
     @Override
-    public Long next() {
+    public int next() {
+        if (current == Integer.MAX_VALUE) {
+            throw new IllegalStateException("Overflow!");
+        }
         return current++;
     }
 }
@@ -234,10 +263,13 @@ final class VolatileConsecutiveNumberProducer implements ConsecutiveNumberProduc
  * and is thread-safe.
  */
 final class SynchronizedConsecutiveNumberProducer implements ConsecutiveNumberProducer {
-    private Long current = Long.valueOf(0);
+    private int current = 0;
 
     @Override
-    synchronized public Long next() {
+    synchronized public int next() {
+        if (current == Integer.MAX_VALUE) {
+            throw new IllegalStateException("Overflow!");
+        }
         return current++;
     }
 }
@@ -247,11 +279,14 @@ final class SynchronizedConsecutiveNumberProducer implements ConsecutiveNumberPr
  * to return the next whole number, and is thread-safe.
  */
 final class SynchronizedBlockConsecutiveNumberProducer implements ConsecutiveNumberProducer {
-    private Long current = Long.valueOf(0);
+    private int current = 0;
 
     @Override
-    public Long next() {
+    public int next() {
         synchronized(this) {
+            if (current == Integer.MAX_VALUE) {
+                throw new IllegalStateException("Overflow!");
+            }
             return current++;
         }
     }
@@ -262,10 +297,13 @@ final class SynchronizedBlockConsecutiveNumberProducer implements ConsecutiveNum
  * but uses an {@link AtomicLong} to enforce atomicity of changes to its variable's state.
  */
 final class AtomicConsecutiveNumberProducer implements ConsecutiveNumberProducer {
-    final private AtomicLong current = new AtomicLong(0);
+    final private AtomicInteger current = new AtomicInteger(0);
 
     @Override
-    public Long next() {
+    public int next() {
+        if (current.get() == Integer.MAX_VALUE) {
+            throw new IllegalStateException("Overflow!");
+        }
         return current.getAndIncrement();
     }
 }
@@ -276,12 +314,15 @@ final class AtomicConsecutiveNumberProducer implements ConsecutiveNumberProducer
  */
 final class ReentrantLockConsecutiveNumberProducer implements ConsecutiveNumberProducer {
     final private ReentrantLock lock = new ReentrantLock();
-    private Long current = Long.valueOf(0);
+    private int current = 0;
 
     @Override
-    public Long next() {
+    public int next() {
         lock.lock();
         try {
+            if (current == Integer.MAX_VALUE) {
+                throw new IllegalStateException("Overflow!");
+            }
             return current++;
         } finally {
             lock.unlock();
