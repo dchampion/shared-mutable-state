@@ -1,51 +1,59 @@
-# The Perils of Shared Mutable State in the Java Programming Language
+# Observation of Shared Mutable State in Java
 
 ## Summary
-A small Java program that demonstrates the effects of using different strategies to observe mutable state from separate threads. The documentation&mdash;both in the source code and in this README&mdash;provides recommendations about which strategy to use, and under what circumstances to use it.
+The small Java program in this repository demonstrates the effects of state changes made in one thread of execution on the visibilty of those changes to another thread of execution.
+
+Specifically, this program demonstrates the <i>thread-safety</i> (or lack thereof) of various strategies to change state; specifically, state that is shared between multiple threads.
+
+The documentation&mdash;both in the source code and in this README&mdash;discusses each strategy in turn, and its suitability to particular use cases.
 
 ## Requirements
-* The Java Development Kit (JDK), version 8 or greater, must be installed on your computer, and the location of its binary executables must be in your executable search path.
+The Java Development Kit (JDK), version 8 or greater, must be installed on your computer, and the location of its binary executables must be in your executable search path.
 
 ## Download the Project
-* If Git is installed, navigate to a clean directory on your file system and type <code>git clone https<nolink>://github.com/dchampion/shared-mutable-state.git</code>.
+* If Git is installed, navigate to a clean directory on your file system and type <code>git clone https<nolink>://github.com/dchampion/shared-mutable-state.git</code>
 
 * If Git is not installed, or you do not wish to use it, click the <code>Clone or download</code> button on this page to download and extract a zipped version of this project into a clean file system directory.
 
 ## Build the Project
-* Using a command-line shell, navigate the to file system directory in which you downloaded the project; i.e the project root directory.
+Using a command-line shell, navigate the to file system directory in which you installed the project and compile the source code:
 
-    * If using <code>cmd</code> (Windows), type <code>javac -d bin src\SharedMutableStateDemo.java</code>.
+* If using <code>cmd</code> (Windows), type <code>javac -d bin src\SharedMutableStateDemo.java</code>
 
-    * If using <code>Terminal</code> (MacOS) or <code>bash</code> (Linux), type <code>javac -d bin src/SharedMutableStateDemo.java</code>.
+* If using <code>Terminal</code> (MacOS) or <code>bash</code> (Linux), type <code>javac -d bin src/SharedMutableStateDemo.java</code>
 
-    Note the direction of the slash in these commands is OS-dependent; in Windows it is a back-slash ('\\'), and in MacOS or Linux it is a forward-slash ('/').
+    <i>Note that these commands are identical save for the direction of the slash; in Windows it is a back-slash ('\\'), and in MacOS or Linux it is a forward-slash ('/')</i>.
 
-    The above commands will compile the source code and put the resulting binaries into the <code>bin</code> directory.
+* (Optional) To generate the program Javadoc, type <code>javadoc -package -d doc src/SharedMutableStateDemo.java</code> (again, the direction of the slash is OS-dependent). To inspect the Javadoc in a web browser, open <code>/project_root_directory/doc/index.html</code>, where <code>project_root_directory</code> is the project root directory.
 
-    * (Optional) To generate project Javadoc, type <code>javadoc -package -d doc src/SharedMutableStateDemo.java</code> (again, direction of the slash is OS-dependent).
-    
-    To inspect the Javadoc in a web browser, open <code>/project_root_directory/doc/index.html</code>, where <code>project_root_directory</code> is the project root directory.
+## Run the Program
+From the project root directory, type <code>java -cp bin SharedMutableStateDemo iterations</code> where <code>iterations</code> is the number of iterations to update and read the value of a state variable.
 
-## Run the project
-From the project root directory, type <code>java -cp bin SharedMutableStateDemo num_iterations</code>, where <code>num_iterations</code> is the number of times the program will read the shared state variable.
-
-This command will execute each strategy in turn, and report a) whether it produced consistent results, and b) the elapsed time it took to execute each strategy.
-
-The greater the value of <code>num_iterations</code>, the more accurate will be the results of the program. This number must be between <code>1</code> and <code>Integer.MAX_VALUE-1</code> (or 2,147,483,647). A value of <code>1000000</code> (1M) is a good place to start as it balances reliability and speed.
+The greater the value of <code>iterations</code>, the more accurate will be the results of the program. This number must be between <code>1</code> and <code>Integer.MAX_VALUE-1</code> (or <code>2147483647</code>). A value of <code>1000000</code> (1M) is a good place to start, as it balances reliability and speed.
 
 ## Description
-The Java code in this demonstration performs the following steps  for each strategy:
+This program performs the following steps:
 
-1. Creates two instances of <code>java.util.Set</code>, a  collection whose invariants gaurantee that a) each of its members is unique, and b) each of its members shares the same type. The type of both sets is <code>java.lang.Integer</code>.
+1. Creates two instances of a <code>java.util.Set</code>, a  collection whose invariants gaurantee that a) each of its members is unique, and b) each of its members shares the same data type (for the purposes of this program the sets will contain <code>java.lang.Integer</code>).
 
-2. Creates a single instance of a whole-number producer. This class implements an interface <code>ConsecutiveNumberProducer</code> whose sole public method is <code>int next()</code>. The contract of this interface is that, starting with the number 0, it will return a whole number equal to 1 greater than the whole number returned by the previous call to <code>next()</code>. That is, it produces consecutive whole numbers on successive calls to <code>next()</code>. Each concrete implementation of this class (six in all) employs a different strategy to observe state changes between multiple threads.
+2. Creates one instance of a class that produces consecutive whole-numbers. The invariant of this class is that it produce a whole number equal to 1 greater than the last number produced by it.
 
-3. Creates and executes two threads in parallel, giving each access to a) one of the two sets created in step 1, and b) the single number-producer instance created in step 2. Each thread calls <code>next()</code> on the shared number-producer and adds the resulting value to its dedicated set (recall that each thread gets its own set); it repeats this the number of times specified in <code>num_iterations</code> supplied as a command-line argument.
+3. Creates two threads, giving each thread access to a) one of the two sets created in step 1, and b) the single number-producer created in step 2.
 
-4. On completion of both threads the sets are analyzed, and the number of intersections and/or collisions encounted by each strategy is reported. An intersection is defined as a whole number appearing in both sets. A collision is defined as an attempt to add a whole number to a set in which that number already exists. In either case, the strategy is not thread-safe.
+4. Executes, in parallel, both threads created in step 3. Each thread reads values from the number-producer <code>iterations</code> times, and adds those values to its set.
+
+5. On completion of both threads, both sets are analyzed for mutual exclusion.
+
+Each step is repeated for a given thread-safety strategy.
+
+A correctly behaving strategy should produce two mutually exclusive sets, the union of which is every consecutive whole number between <code>1</code> to 2x <code>iterations</code> (2x because there are two threads).
+
+The detection of either an intersection or a collision indicates that the strategy is not safe to use in program that uses multiple threads.
+
+An intersection is defined as a number appearing in both sets. A collision is defined as an attempt to add a number to a set in which that number already exists.
 
 ## Results and Analysis
-The following results were produced using the recommended input of 1M (1,000,000) iterations per strategy.
+The following results were produced using the recommended input of 1M (<code>1000000</code>) iterations.
 ### Unsynchronized Strategy
 #### Implementation
 <pre style="font-size: 12px">
@@ -70,9 +78,9 @@ Unsynchronized strategy is not thread-safe.
 </pre>
 
 #### Discussion
-The first and most obvious thing to note is the large number of set intersections. Recall that just one intersection violates the invariant of the consecutive-number generator, which is that each call to its <code>next()</code> method produce a unique number&mdash;namely 1 greater than that produced by its last invocation. The sheer number of intersections&mdash;534,391 among 2,000,000 iterations (1M per thread/set)&mdash;indicates this is a badly flawed strategy.
+The first and most obvious thing to note is the large number of intersections. Recall that just one intersection violates the invariant of the consecutive-number producer, which is that each call to its <code>next()</code> method produce a unique number&mdash;namely 1 greater than that produced by its last invocation. The sheer number of intersections&mdash;534,391 among 2,000,000 iterations (1M per thread-set pair)&mdash;indicates this is a badly flawed state-transition strategy.
 
-The second thing to note is the number of set collisions in both threads. Recall that a collision occurs when a single thread attempts to add a number that already appears in its set. As with intersections, even a single collision indicates a flawed strategy for observing shared, mutable state.
+The second thing to note is the number of set collisions in both threads. Recall that a collision occurs when a single thread attempts to add a number that already appears in its set. As with intersections, even a single collision indicates a flawed strategy.
 
 ### Volatile Strategy
 #### Implementation
@@ -98,13 +106,11 @@ Volatile strategy is not thread-safe.
 </pre>
 
 #### Discussion
-The sole difference between the <code>Unsyncrhonized</code> and <code>Volatile</code> strategy is that in the latter, the state variable <code>current</code> is marked with the <code>volatile</code> keyword.
+The sole difference between the <code>Unsyncrhonized</code> and <code>Volatile</code> strategies is that, in the latter, the state variable <code>current</code> is marked with the <code>volatile</code> keyword. As with the <code>Unsynchronized</code> strategy, we still see a large number of intersections and collisions.
 
-As with the <code>Unsynchronized</code> strategy, we still see a large number of both set intersections and collisions.
+The <code>volatile</code> keyword gaurantees the <i>visiblity</i> of a state change between threads, but it makes no gaurantee as to the <i>atomity</i> of the state change. Absent atomicity, inter-thread calls to <code>next()</code> may get interleaved, resulting in reads of state in one thread that have not yet been written in the other.
 
-While the <code>volatile</code> keyword gaurantees the <i>visiblity</i> of mutable state between threads, it does not gaurantee the <i>atomity</i> of mutations of the variables to which it applies. Absent atomicity, inter-thread calls to <code>next()</code> may be interleaved, resulting in reads of state in one thread that have not been fully written in the other.
-
-We also still see a fairly large number of collisions. The <code>volatile</code> keyword gaurantees that a state change made by any thread is immediately visible to any other thread, which might lead one to think this should prevent either thread from reading a value it has previously read. But this is not the case.
+One might wonder how it is that a state change confined to a single line of code (<code>current++</code>) can be interleaved; it's one line of code, so it must be atomic, right?. This is actually not the case. At the assembly level (to which all programming language instructions are ultimately reduced) <code>current++</code> is actually three operations: 1) read the original value from its memory location into a processor register, 2) add 1 to it and 3) write the value back to the original memory location.
 
 ### Synchronized Strategy
 #### Implementation
@@ -130,9 +136,9 @@ Synchronized strategy may be thread-safe.
  </pre>
 
 #### Discussion
-The sole difference between the <code>Syncrhonized</code> strategy and that of the two previous ones is its use of the <code>synchronized</code> keyword in the definition of its <code>next()</code> method.
+The key difference between the <code>Syncrhonized</code> strategy and that of the previous two is the presence of the <code>synchronized</code> keyword in the definition of its <code>next()</code> method.
 
-Use of the keyword in this way renders the method mutually exclusive, thereby enforcing atomicity of the operations that occur within it. When a thread calls the synchronized <code>next()</code>, it <i>locks</i> access to the method until it returns. Any thread attempting to call <code>next()</code> while another thread owns this lock will be forced to wait until the method returns in the owning thread. This strategy gaurantees the prevention of intersections and collisions in multiple threads reading shared, mutable state.
+Synchronizing a method in this way gaurantees mutually exclusive access to its body, thereby enforcing the atomicity of all the operations within it. When a thread calls the synchronized <code>next()</code> method, it <i>locks</i> access to it, forcing any other thread that calls <code>next()</code> to wait until the method returns in the locking thread.
 
 This type of synchronization is known as <i>intrinsic</i> locking, because it is a built-in feature of the language.
 
@@ -162,9 +168,9 @@ SynchronizedBlock strategy may be thread-safe.
  </pre>
 
 #### Discussion
-<code>SynchronizedBlock</code> is another example of intrinsic locking, and is (for the purposes of this example) effectively identical to the <code>Synchronized</code> strategy. In both implementations, the entirety of the <code>next()</code> method is locked by calling threads.
+<code>SynchronizedBlock</code> is another example of intrinsic locking. For the purposes of this simplified example, it is functionally identical to the <code>Synchronized</code> strategy. In both cases the entire body of the <code>next()</code> method is locked by calling threads.
 
-The difference is that this strategy gives the implementer finer-grained control over the scope of the lock. In the case of the consecutive-number generator this is moot, as there is no finer grain than the one-line increment operation <code>return current++</code>. But in a more complex method, consisting of several tens of lines of code, for example, this stategy can be used to confine mutual exclusion to just that critical section of code that needs protection. In such a case, using the <code>synchronized</code> keyword on the method is overkill and reduces the overall concurrency of the program.
+The synchronized block strategy gives the implementer finer-grained control over the scope of the lock, however. In the case of the consecutive-number producer this is moot, as there is no finer grain than the one-line increment operation <code>current++</code>. But in a more complex method, consisting of tens or hundreds of lines of code, this stategy can be used to confine mutual exclusion to just the code that changes state. Using the <code>synchronized</code> keyword at the method level would be overkill in such a situation, and would reduce the concurrency of the program.
 
 ### Atomic Strategy
 #### Implementation
@@ -192,7 +198,7 @@ Atomic strategy may be thread-safe.
 #### Discussion
 The <code>Atomic</code> strategy uses one of several classes in the <code>java.util.concurrent.atomic</code> package specifically designed for thread-safety (in the present case <code>AtomicInteger</code>). These classes enforce atomic state transitions on numbers and object references.
 
-In simple cases such as this, where the entirety of a object's mutable state is confined to a single variable, this strategy is likely preferable to any other because it confines the scope of atomicity precisely to the mutable state of the object.
+In simple cases such as this, where the entirety of a object's mutable state is confined to a single variable, this strategy is likely preferable to any other because it confines atomicity to just the required scope.
 
 ### ReentrantLock Strategy
 
@@ -225,6 +231,8 @@ ReentrantLock strategy may be thread-safe.
 </pre>
 
 #### Discussion
-A <code>ReentrantLock</code> is the simplest implementation of a number of implementations of the <code>Lock</code> interface found in the <code>java.util.concurrent.locks</code> package. It is also known as an <i>explicit</i> lock, and provides a richly-featured alternative to the <i>intrinsic</i> locking techniques of the <code>Synchronized</code> and <code>SynchronizedBlock</code> strategies.
+The class <code>ReentrantLock</code> is the simplest of a number of implementations of the <code>Lock</code> interface found in the <code>java.util.concurrent.locks</code> package. It is also known as an <i>explicit</i> lock (in contrast to the <i>intrinsic</i> locks discussed previously) because it uses an explicit object to enforce mutual exclusion. The <code>Lock</code> implementations provide a richly-featured alternative to the <i>intrinsic</i> locking strategies of <code>Synchronized</code> and <code>SynchronizedBlock</code>.
 
-As with the other thread-safe strategies, if used properly, implementations of the <code>Lock</code> interface gaurantee both atomicity of operations and visibility of state between multiple threads, but in addition offer advanced features such as timed locked waits, interruptible locked waits, and implementation and enforcement of fairness policies. None of these features is used in this program. However, the code used to demonstrate its use here (i.e. the <code>try/finally</code> idiom) is considered a best practice.
+The <code>try/finally</code> idiom used to demonstrate the use of <code>ReentrantLock</code> in this example is considered a best practice.
+
+As with the other thread-safe strategies, implementations of the <code>Lock</code> interface gaurantee both atomicity of state-changing operations, and the visibility thereof, between multiple threads. In addition, they offer advanced features such as timed locked waits, interruptible locked waits and fairness policies (none of which is demonstrated in this program).
