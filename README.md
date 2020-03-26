@@ -78,9 +78,9 @@ Unsynchronized strategy is not thread-safe.
 </pre>
 
 #### Discussion
-The first and most obvious thing to note is the large number of intersections. Recall that just one intersection violates the invariant of the consecutive-number producer, which is that each call to its <code>next()</code> method produce a unique number&mdash;namely 1 greater than that produced by its last invocation. The sheer number of intersections&mdash;534,391 among 2,000,000 iterations&mdash;indicates that this is a badly flawed state-transition strategy.
+The most obvious thing to note is the large number of intersections and collisions. Recall that the occurence of either indicates a violation of the invariant of the consecutive-number producer, which is that each call to its <code>next()</code> method produce a unique number; namely 1 greater than that produced by its last invocation.
 
-The second thing to note is the number of set collisions in both threads. Recall that a collision occurs when a thread attempts to add a number that already appears in its set (or, put another way, when the number-producer issues a number equal to that returned by its last invocation of <code>next()</code>, which is a violation of its invariant). As with intersections, even a single collision indicates a flawed strategy.
+The sheer number of intersections and collisions indicates that this is a badly flawed state-transition strategy.
 
 ### Volatile Strategy
 #### Implementation
@@ -106,11 +106,11 @@ Volatile strategy is not thread-safe.
 </pre>
 
 #### Discussion
-The sole difference between the <code>Unsyncrhonized</code> and <code>Volatile</code> strategies is that, in the latter, the state variable <code>current</code> is marked with the <code>volatile</code> keyword. As with the <code>Unsynchronized</code> strategy, we still see a large number of intersections and collisions.
+The sole difference between the <code>Unsyncrhonized</code> and <code>Volatile</code> strategies is that, in the latter, the state variable <code>current</code> is marked with the <code>volatile</code> keyword. As with the <code>Unsynchronized</code> strategy, we still see a large number of intersections and collisions, making this too a badly flawed state-transition strategy.
 
-The <code>volatile</code> keyword gaurantees the <i>visiblity</i> of a state change between threads, but it makes no gaurantee as to the <i>atomity</i> of the state change. Absent atomicity, inter-thread calls to <code>next()</code> may get interleaved, resulting in reads of state in one thread that have not yet been written in the other.
+The <code>volatile</code> keyword gaurantees the <i>visiblity</i> of a state change between threads, but it makes no gaurantee as to the <i>atomity</i> of the state change. Absent atomicity, inter-thread calls to <code>next()</code> can be interleaved, resulting in reads of state in one thread that have not yet been written in the other.
 
-One might wonder how it is that a state change confined to a single line of code (<code>current++</code>) can be interleaved; <i>it's one line of code, so it must be atomic, right?</i> This is actually not the case. At the assembly level (to which all programming language instructions ultimately reduce) <code>current++</code> requires three operations: 1) read the current value from its memory location into a register, 2) add 1 to it and 3) write the new value back to the original memory location.
+One might wonder how it is that a state change confined to a single line of code&mdash;<code>current++</code>&mdash;can be interleaved; <i>it's one line of code, so it must be atomic, right?</i> This is actually not the case. At the assembly level (to which all programming language instructions ultimately reduce) <code>current++</code> requires three operations: 1) read the current value from its memory location into a processor register, 2) add 1 to it and 3) write the updated value back to the original memory location.
 
 ### Synchronized Strategy
 #### Implementation
@@ -136,7 +136,7 @@ Synchronized strategy may be thread-safe.
  </pre>
 
 #### Discussion
-The key difference between the <code>Syncrhonized</code> strategy and that of the previous two is the presence of the <code>synchronized</code> keyword in the definition of its <code>next()</code> method.
+The key difference between the <code>Syncrhonized</code> strategy and that of the previous two is the presence of the <code>synchronized</code> keyword in the definition of its <code>next()</code> method. The complete absence of intersections and collisions suggests this is a thread-safe state-transition strategy, and it is.
 
 Synchronizing a method in this way gaurantees mutually exclusive access to its body, thereby enforcing the atomicity of all the operations within it. When a thread calls the synchronized <code>next()</code> method, it <i>locks</i> access to it, forcing any other thread that calls <code>next()</code> to wait until the owning thread releases the lock.
 
@@ -196,7 +196,7 @@ Atomic strategy may be thread-safe.
 </pre>
 
 #### Discussion
-The <code>Atomic</code> strategy uses one of several classes in the <code>java.util.concurrent.atomic</code> package specifically designed for thread-safety (in the present case <code>AtomicInteger</code>). These classes enforce atomic state transitions on numbers and object references.
+The <code>Atomic</code> strategy employs one of several classes in the <code>java.util.concurrent.atomic</code> package specifically designed for thread-safety (in the present case <code>AtomicInteger</code>). These classes enforce atomic state transitions on numbers and object references. As the complete absense of intersections or collisions suggests, this strategy is thread-safe.
 
 In simple cases such as this demonstration, where the entirety of a object's mutable state is confined to a single variable, this strategy is likely preferable to any other because it confines atomicity to precisely the required scope. As the number of state variables increases to more than one, however, the increase in complexity may demand a more robust strategy.
 
@@ -233,6 +233,6 @@ ReentrantLock strategy may be thread-safe.
 #### Discussion
 <code>ReentrantLock</code> is the simplest of a number of implementations of the <code>Lock</code> interface found in the <code>java.util.concurrent.locks</code> package. It is also known as an <i>explicit</i> lock (in contrast to the <i>intrinsic</i> locks discussed previously) because it uses an explicit object to enforce mutual exclusion. The <code>Lock</code> implementations provide a richly-featured alternative to the <i>intrinsic</i> locking strategies of <code>Synchronized</code> and <code>SynchronizedBlock</code>.
 
-The <code>try/finally</code> idiom used to demonstrate the use of <code>ReentrantLock</code> in this example is considered a best practice.
+As with the other thread-safe strategies, implementations of the <code>Lock</code> interface gaurantee both the atomicity and visibility of state-changing operations between multiple threads. In addition, they offer advanced features such as timed locked waits, interruptible locked waits and fairness policies (none of which is demonstrated in this program).
 
-As with the other thread-safety strategies, implementations of the <code>Lock</code> interface gaurantee both the atomicity of state-changing operations, as well as their visibility, between multiple threads. In addition, they offer advanced features such as timed locked waits, interruptible locked waits and fairness policies (none of which is demonstrated in this program).
+The <code>try/finally</code> idiom used to demonstrate the use of <code>ReentrantLock</code> in this example is considered a best practice.
