@@ -40,7 +40,7 @@ This program performs the following steps:
 
 3. Creates two threads, giving each thread access to a) one of the two sets created in step 1, and b) the number-producer created in step 2.
 
-4. Executes, in parallel, both threads created in step 3. Each thread reads values from the number-producer <code>iterations</code> times, and adds those values to its set.
+4. Executes, in parallel, both threads created in step 3. Each thread reads values from the number-producer <code>iterations</code> times (a value supplied as an argument to the program), and adds those values to its set.
 
 5. On completion of both threads, both sets are analyzed for mutual exclusion.
 
@@ -53,7 +53,12 @@ The detection of either an intersection or a collision indicates that the strate
 An intersection is defined as a number appearing in both sets. A collision is defined as an attempt to add a number to a set in which that number already exists.
 
 ## Results and Analysis
-The following results were produced using the recommended input of 1M (<code>1000000</code>) iterations.
+The implementation, results and analysis of each strategy are presented below.
+
+The sections titled <i>Implementation</i> present the code that executes the state-changing operation for each strategy. Each implementation is encapsulated in the <code>next()</code> method of a <code>ConsecutiveNumberProducer</code> interface. The <code>next()</code> method is called repeatedly by two threads <code>iterations</code> times, where <code>iterations</code> is a value supplied as an argument to the program. In the examples below, a value of 1M (<code>1,000,000</code>) iterations was used.
+
+The contract of the <code>next()</code> method is that it return a positive integer 1 greater than that returned by its previous invocation.
+
 ### Unsynchronized Strategy
 #### Implementation
 <pre style="font-size: 12px">
