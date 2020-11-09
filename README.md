@@ -29,7 +29,7 @@ Using a command-line shell, navigate to the file system directory in which you i
 ## Run the Program
 From the project root directory, type <code>java -cp bin SharedMutableStateDemo iterations</code> where <code>iterations</code> is the number of iterations the program will update and read the value of its state variable.
 
-The greater the value of <code>iterations</code>, the more accurate will be the results of the program. This number must be between <code>1</code> and <code>Integer.MAX_VALUE-1</code> (or <code>2147483647</code>). A value of <code>1000000</code> (1M) is a good place to start, as it balances reliability and speed.
+The greater the value of <code>iterations</code>, the more informative the program's output will be. This number must be between <code>1</code> and <code>Integer.MAX_VALUE-1</code> (or <code>2147483647</code>). A value of <code>1000000</code> (1M) is a good place to start, as it balances reliability and speed.
 
 ## Description
 This program performs the following steps:
