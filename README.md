@@ -13,7 +13,7 @@ The Java Development Kit (JDK), version 8 or greater, must be installed on your 
 ## Download the Project
 * If Git is installed, navigate to a clean directory on your file system and type <code>git clone https<nolink>://github.com/dchampion/shared-mutable-state.git</code>
 
-* If Git is not installed, or you do not wish to use it, click the <code>Clone or download</code> button on this page to download and extract a zipped version of this project into a clean file system directory.
+* If Git is not installed, or you do not wish to use it, click the <code>Code</code> button on this page and select <code>Download ZIP</code> to download and extract a zipped version of this project into a clean file system directory.
 
 ## Build the Project
 Using a command-line shell, navigate to the file system directory in which you installed the project and compile the source code:
